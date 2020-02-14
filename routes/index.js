@@ -37,15 +37,16 @@ router.get( '/', ( req, res ) => {
 /**
  * GET /session redirects to /room/session
  */
-router.get( '/session', ( req, res ) => {
-  res.redirect( '/room/session' );
+router.get( '/session/:name', ( req, res ) => {
+  const { name } = req.params;
+  res.redirect( `/room/session/${name}` );
 } );
 
 /**
  * GET /room/:name
  */
-router.get( '/room/:name', ( req, res ) => {
-  const { name: roomName } = req.params;
+router.get( '/room/:name/:connectionName', ( req, res ) => {
+  const { name: roomName, connectionName } = req.params;
   let sessionId;
   let token;
   console.log( `Attempting to create a session associated with the room: ${roomName}` );
@@ -55,7 +56,7 @@ router.get( '/room/:name', ( req, res ) => {
     sessionId = roomToSessionIdDictionary[roomName];
 
     // generate token
-    token = opentok.generateToken( sessionId );
+    token = opentok.generateToken( sessionId, { data: connectionName } );
     res.setHeader( 'Content-Type', 'application/json' );
     res.send( { apiKey, sessionId, token } );
   }
@@ -77,7 +78,7 @@ router.get( '/room/:name', ( req, res ) => {
       roomToSessionIdDictionary[roomName] = sessionId;
 
       // generate token
-      token = opentok.generateToken( sessionId );
+      token = opentok.generateToken( sessionId, { data: connectionName } );
       res.setHeader( 'Content-Type', 'application/json' );
       res.send( { apiKey, sessionId, token } );
     } );
