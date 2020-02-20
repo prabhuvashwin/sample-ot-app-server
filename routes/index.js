@@ -20,6 +20,8 @@ if ( !apiKey || !secret ) {
 const OpenTok = require( 'opentok' );
 const opentok = new OpenTok( apiKey, secret );
 
+let _broadcastId = "";
+
 // IMPORTANT: roomToSessionIdDictionary is a variable that associates room names with unique
 // unique sesssion IDs. However, since this is stored in memory, restarting your server will
 // reset these values if you want to have a room-to-session association in your production
@@ -146,56 +148,61 @@ router.get( '/archive/:archiveId/view', ( req, res ) => {
   } );
 } );
 
-/**
- * GET /archive/:archiveId
- */
-router.get( '/archive/:archiveId', ( req, res ) => {
-  const { archiveId } = req.params;
+router.post( '/broadcast/start', ( req, res ) => {
+  const json = req.body;
+  const { sessionId, maxDuration, resolution, layout, hls = {} } = json;
 
-  // fetch archive
-  console.log( `Attempting to fetch archive: ${archiveId}` );
-  opentok.getArchive( archiveId, ( err, archive ) => {
+  const broadcastOptions = {
+    maxDuration,
+    resolution,
+    layout,
+    outputs: {
+      hls
+    }
+  };
+
+  opentok.startBroadcast( sessionId, broadcastOptions, ( err, broadcast ) => {
     if ( err ) {
-      console.error( 'Error in getArchive' );
-      console.error( err );
-      res.status( 500 )
-         .send( { error: `getArchive error: ${err}` } );
-      return;
+      return res.send( 500, err.message );
     }
 
-    // extract as a JSON object
-    res.setHeader( 'Content-Type', 'application/json' );
-    res.send( archive );
+    _broadcastId = broadcast.id;
+
+    return res.json( broadcast );
   } );
 } );
 
-/**
- * GET /archive
- */
-router.get( '/archive', ( req, res ) => {
-  const options = {};
-  const { count, offset } = req.query;
-  if ( count ) {
-    options.count = count;
-  }
-  if ( offset ) {
-    options.offset = offset;
-  }
+router.get( '/broadcast/:broadcastId/stop', ( req, res ) => {
+  const { broadcastId } = req.params;
 
-  // list archives
-  console.log( 'Attempting to list archives' );
-  opentok.listArchives( options, ( err, archives ) => {
+  opentok.stopBroadcast( broadcastId, ( err, broadcast ) => {
     if ( err ) {
-      console.error( 'Error in listArchives' );
-      console.error( err );
+      return res.send( 500, err.message );
+    }
+
+    return res.json( broadcast );
+  } );
+} );
+
+router.get( '/broadcast/id', ( req, res ) => {
+  if ( !_broadcastId ) return res.json( { broadcastId: null } );
+
+  return res.json( { broadcastId: _broadcastId } );
+} );
+
+router.get( '/broadcast/:broadcastId/view', ( req, res ) => {
+  const { broadcastId } = req.params;
+  console.log( `Attempting to view broadcast: ${broadcastId}` );
+  
+  return opentok.getBroadcast( broadcastId, ( err, broadcast ) => {
+    if ( err ) {
+      console.error( 'Error in getBroadcast: ', err );
       res.status( 500 )
-         .send( { error: `infoArchive error: ${err}` } );
+         .send( { error: `getBroadcast error: ${err}` } );
       return;
     }
 
-    // extract as a JSON object
-    res.setHeader( 'Content-Type', 'application/json' );
-    res.send( archives );
+    return res.json( broadcast );
   } );
 } );
 
