@@ -180,6 +180,8 @@ router.get( '/broadcast/:broadcastId/stop', ( req, res ) => {
       return res.send( 500, err.message );
     }
 
+    _broadcastId = null;
+
     return res.json( broadcast );
   } );
 } );
